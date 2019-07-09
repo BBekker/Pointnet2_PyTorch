@@ -64,7 +64,7 @@ __device__ void __update(float *__restrict__ dists, int *__restrict__ dists_i,
   dists_i[idx1] = v2 > v1 ? i2 : i1;
 }
 
-// Input dataset: (b, n, 3), tmp: (b, n)
+// Input dataset: (batch size, numpoints , 2), tmp: (b, n)
 // Ouput idxs (b, m)
 template <unsigned int block_size>
 __global__ void furthest_point_sampling_kernel(
@@ -75,7 +75,7 @@ __global__ void furthest_point_sampling_kernel(
   __shared__ int dists_i[block_size];
 
   int batch_index = blockIdx.x;
-  dataset += batch_index * n * 3;
+  dataset += batch_index * n * 2;
   temp += batch_index * n;
   idxs += batch_index * m;
 
@@ -89,19 +89,17 @@ __global__ void furthest_point_sampling_kernel(
   for (int j = 1; j < m; j++) {
     int besti = 0;
     float best = -1;
-    float x1 = dataset[old * 3 + 0];
-    float y1 = dataset[old * 3 + 1];
-    float z1 = dataset[old * 3 + 2];
+    float x1 = dataset[old * 2 + 0];
+    float y1 = dataset[old * 2 + 1];
     for (int k = tid; k < n; k += stride) {
-      float x2, y2, z2;
-      x2 = dataset[k * 3 + 0];
-      y2 = dataset[k * 3 + 1];
-      z2 = dataset[k * 3 + 2];
-      float mag = (x2 * x2) + (y2 * y2) + (z2 * z2);
+      float x2, y2;
+      x2 = dataset[k * 2 + 0];
+      y2 = dataset[k * 2 + 1];
+      float mag = (x2 * x2) + (y2 * y2);
       if (mag <= 1e-3) continue;
 
       float d =
-          (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1);
+          (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
 
       float d2 = min(d, temp[k]);
       temp[k] = d2;
